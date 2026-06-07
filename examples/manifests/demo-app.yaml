@@ -1,0 +1,264 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo
+spec: {}
+status: {}
+---
+apiVersion: v1
+automountServiceAccountToken: false
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+---
+apiVersion: v1
+data:
+  GREETING: Hello from vibsl
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app-config
+  namespace: demo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app-secret
+  namespace: demo
+stringData:
+  API_KEY: placeholder-rotate-me
+type: Opaque
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: demo-app
+subjects:
+- kind: ServiceAccount
+  name: demo-app
+  namespace: demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/managed-by: vibsl
+      app.kubernetes.io/name: demo-app
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: vibsl
+        app.kubernetes.io/name: demo-app
+    spec:
+      containers:
+      - envFrom:
+        - configMapRef:
+            name: demo-app-config
+        - secretRef:
+            name: demo-app-secret
+        image: localhost:5001/demo-app:v1
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        name: demo-app
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 250m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      securityContext:
+        fsGroup: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: demo-app
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  type: ClusterIP
+status:
+  loadBalancer: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: demo-app.local
+    http:
+      paths:
+      - backend:
+          service:
+            name: demo-app
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+status:
+  loadBalancer: {}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+spec:
+  maxReplicas: 5
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 70
+        type: Utilization
+    type: Resource
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: demo-app
+status:
+  currentMetrics: null
+  desiredReplicas: 0
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/managed-by: vibsl
+      app.kubernetes.io/name: demo-app
+status:
+  currentHealthy: 0
+  desiredHealthy: 0
+  disruptionsAllowed: 0
+  expectedPods: 0
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: vibsl
+    app.kubernetes.io/name: demo-app
+  name: demo-app
+  namespace: demo
+spec:
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+  - {}
+  ingress:
+  - ports:
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: vibsl
+      app.kubernetes.io/name: demo-app
+  policyTypes:
+  - Ingress
+  - Egress

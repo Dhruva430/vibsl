@@ -1,0 +1,35 @@
+{
+  "name": "demo-app",
+  "repo_url": "https://github.com/Dhruva430/vibsl-sample-app.git",
+  "git_ref": "main",
+  "dockerfile": "Dockerfile",
+  "build_context": ".",
+  "image": {
+    "registry": "localhost:5001",
+    "name": "demo-app",
+    "tag": "v1"
+  },
+  "namespace": "demo",
+  "replicas": 2,
+  "container_port": 8080,
+  "service_port": 80,
+  "host": "demo-app.local",
+  "env": {
+    "GREETING": "Hello from vibsl"
+  },
+  "secrets": {
+    "API_KEY": "placeholder-rotate-me"
+  },
+  "resources": {
+    "cpu_request": "50m",
+    "memory_request": "64Mi",
+    "cpu_limit": "250m",
+    "memory_limit": "128Mi"
+  },
+  "autoscaling": {
+    "enabled": true,
+    "min_replicas": 2,
+    "max_replicas": 5,
+    "target_cpu_utilization": 70
+  }
+}

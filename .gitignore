@@ -1,0 +1,18 @@
+# Binaries
+/bin/
+/server
+/render
+*.exe
+
+# Go build/test artifacts
+*.test
+*.out
+coverage.*
+
+# Local job checkouts (WORK_DIR default)
+/tmp/vibsl-jobs/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
